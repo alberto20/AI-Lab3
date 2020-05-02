@@ -1,0 +1,148 @@
+from PIL import Image
+import glob
+import cv2
+import zipfile
+import os
+import matplotlib.pyplot as plt
+from __future__ import print_function
+import keras
+from keras.datasets import mnist
+from keras.layers import Dense, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from keras.models import Sequential
+import matplotlib.pylab as plt
+import pandas as pd
+from sklearn import datasets, linear_model
+from sklearn.model_selection import train_test_split
+import numpy as np
+from sklearn.preprocessing import LabelEncoder
+
+#zip_ref = zipfile.ZipFile("data-lab3.zip", 'r')
+#zip_ref.extractall()
+x = []
+y = []
+labeltypes = []
+folders = glob.glob('data-lab3/data-lab3/*')
+
+for folders in folders:
+  for image in os.listdir(folders):
+    img = cv2.imread(os.path.join(folders, image))
+    compare = str(type(img))
+    tokenM = []
+    tokenM = folders.split('/')
+    tmpfolders = tokenM[1]
+    if compare == '<class \'numpy.ndarray\'>':
+      img = cv2.resize(img,(150,150))
+      if img is not None:
+        x.append(img)
+        y.append(tmpfolders)
+  tokenM = []
+  tokenM = folders.split('/')
+  tmpfolders = tokenM[1]
+  labeltypes.append(tmpfolders)
+  
+#print(labeltypes)
+
+y_true = y
+
+#print(y_true[0])
+x = np.array(x)
+y = np.array(y)
+  
+#print(len(x))
+#print(len(y))
+  
+#plt.figure()
+#plt.imshow(x[0])
+#plt.show
+
+num_classes = 2
+epochs = 2
+
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.25)
+
+input_shape = (150, 150, 3)
+
+# data cleaning
+x_train = x_train.astype('float32')
+x_test  = x_test.astype('float32')
+x_train /= 255
+x_test  /= 255
+    
+#print(traindogcnt)
+#print(traincatcnt)
+
+encoder = LabelEncoder()
+g_ytrain = y_train
+g_ytest = y_test
+
+y_train = encoder.fit_transform(y_train)
+y_test = encoder.fit_transform(y_test)
+y_true = y_test
+
+# gut check our values and sizes
+print( 'x train shape', x_train.shape )
+print( 'training samples: ', x_train.shape[0] )
+print( 'testing samples: ', x_test.shape[0] )
+
+y_train = keras.utils.to_categorical(y_train, 2)
+y_test = keras.utils.to_categorical(y_test, 2)
+
+print( 'categorical example: ', y_test[0] )
+
+dogs = [int(np.sum(g_ytrain == 'dog')), int(np.sum(g_ytest == 'dog'))]
+cats = [int(np.sum(g_ytrain == 'cat')), int(np.sum(g_ytest == 'cat'))]
+
+plt.bar(np.arange(2), dogs, .35)
+plt.bar(np.arange(2)+ .35, cats, .35)
+plt.xticks(np.arange(2), ('Testing', 'Training'))
+plt.xlabel('Training vs Testing Data', fontsize = 16)
+plt.ylabel('Count of Images', fontsize = 16)
+plt.legend(['dogs', 'cats'])
+plt.show
+
+
+from keras import optimizers
+from keras import losses
+
+model = Sequential()
+model.add( Conv2D( 32, kernel_size=(5,5), strides=(1,1), activation='relu', input_shape=input_shape ) ) # conv
+model.add( MaxPooling2D(pool_size=(2,2), strides=(2,2)) ) # pool
+model.add( Flatten() ) # flatten
+model.add( Dense(num_classes, activation='softmax') ) # dense
+
+
+model.summary()
+
+
+from sklearn.metrics import classification_report
+from sklearn import metrics
+
+y_pred = model.predict_classes(x_test)
+y_pred = keras.utils.to_categorical(y_pred, num_classes)
+
+y_true = encoder.fit_transform(y_true)
+
+y_true = keras.utils.to_categorical(y_true, num_classes)
+
+y_pred = np.argmax(y_pred, axis=1)
+y_true = np.argmax(y_true, axis=1)
+
+
+#print(y_true)
+
+target_names =  ['Cat', 'Dog']
+report = metrics.classification_report(y_true, y_pred)
+print(report)
+
+fpr, tpr, threshold = metrics.roc_curve(y_true, y_pred)
+roc_auc = metrics.auc(fpr,tpr)
+plt.title("Reciever Operating Characterisitc")
+plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
+plt.legend(loc = 'lower right')
+plt.plot([0,1],[0,1], 'r--')
+plt.xlim([0,1])
+plt.ylim([0,1])
+plt.ylabel('True Positive Rate')
+plt.xlabel('Flase Positive Rate')
+plt.show
